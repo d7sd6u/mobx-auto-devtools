@@ -1,0 +1,34 @@
+{
+  "name": "mobx-auto-devtools",
+  "version": "0.0.1",
+  "description": "",
+  "keywords": [],
+  "license": "LGPL-3.0-only",
+  "author": "d7sd6u",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "typecheck": "tsgo --noEmit",
+    "lint": "oxlint --type-aware",
+    "format": "oxfmt",
+    "bundle": "tsdown"
+  },
+  "dependencies": {
+    "jsan": "^3.1.14",
+    "friendly-mobx-console-formatter": "^0.0.2",
+    "@redux-devtools/extension": "^4.0.0"
+  },
+  "devDependencies": {
+    "@tsconfig/strictest": "^2.0.5",
+    "@types/jsan": "^3.1.5",
+    "@types/node": "^22.13.17",
+    "@typescript/native-preview": "7.0.0-dev.20260418.1",
+    "oxfmt": "^0.45.0",
+    "oxlint": "^1.60.0",
+    "oxlint-tsgolint": "^0.21.1",
+    "tsdown": "^0.21.9"
+  },
+  "peerDependencies": {
+    "mobx": "^6.15.0"
+  }
+}

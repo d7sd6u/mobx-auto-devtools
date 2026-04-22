@@ -1,0 +1,63 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Cache Nix store
+        uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Install dependencies
+        run: nix develop --command pnpm install --frozen-lockfile
+
+      - name: Build library
+        run: nix develop --command pnpm bundle
+
+      - name: Create tarball
+        id: pack
+        run: |
+          TARBALL_PATH=$(nix develop --command pnpm pack | tail -n 1)
+          echo "path=$TARBALL_PATH" >> "$GITHUB_OUTPUT"
+          echo "name=$(basename "$TARBALL_PATH")" >> "$GITHUB_OUTPUT"
+
+      - name: Generate release notes
+        env:
+          TARBALL_NAME: ${{ steps.pack.outputs.name }}
+        run: |
+          URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/${TARBALL_NAME}"
+          {
+            echo '## Installation'
+            echo ''
+            echo '```bash'
+            echo "pnpm add ${URL}"
+            echo '```'
+            echo ''
+            echo 'Or in `package.json`:'
+            echo ''
+            echo '```json'
+            echo '"dependencies": {'
+            echo "  \"mobx-auto-devtools\": \"${URL}\""
+            echo '}'
+            echo '```'
+          } > release_body.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.pack.outputs.path }}
+          body_path: release_body.md
+          generate_release_notes: true

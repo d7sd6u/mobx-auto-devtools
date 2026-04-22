@@ -8,6 +8,12 @@ importers:
 
   .:
     dependencies:
+      '@redux-devtools/extension':
+        specifier: ^4.0.0
+        version: 4.0.0(redux@5.0.1)
+      friendly-mobx-console-formatter:
+        specifier: ^0.0.2
+        version: 0.0.2(mobx@6.15.0)
       jsan:
         specifier: ^3.1.14
         version: 3.1.14
@@ -15,9 +21,6 @@ importers:
         specifier: ^6.15.0
         version: 6.15.0
     devDependencies:
-      '@redux-devtools/extension':
-        specifier: ^4.0.0
-        version: 4.0.0(redux@5.0.1)
       '@tsconfig/strictest':
         specifier: ^2.0.5
         version: 2.0.8
@@ -30,9 +33,6 @@ importers:
       '@typescript/native-preview':
         specifier: 7.0.0-dev.20260418.1
         version: 7.0.0-dev.20260418.1
-      friendly-mobx-console-formatter:
-        specifier: ^0.0.2
-        version: 0.0.2(mobx@6.15.0)
       oxfmt:
         specifier: ^0.45.0
         version: 0.45.0

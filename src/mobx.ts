@@ -10,7 +10,7 @@ export class Serializable {
   }
   static revivedObjects: WeakMap<object, Serializable> = new WeakMap();
   static serializedObjects: WeakMap<object, unknown> = new WeakMap();
-  toObj(clear?: boolean) {
+  toObj(clear?: boolean): object {
     if (clear) Serializable.serializedObjects = new WeakMap();
     const serialized = Serializable.serializedObjects.get(this);
     if (serialized) return serialized;
@@ -39,8 +39,8 @@ export class Serializable {
     if (typeof v === "object" && !!v) Serializable.revivedObjects.set(v, fresh as Serializable);
     return fresh;
   }
-  init() {}
-  static fromObj(v: unknown) {
+  init(): void {}
+  static fromObj(v: unknown): unknown {
     if (isSerializedTypeClass(v)) {
       if (v.__serializedType__ === "Map") {
         const rawData = v.data as [unknown, unknown][] | Record<string, unknown>;

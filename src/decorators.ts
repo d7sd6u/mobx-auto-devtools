@@ -44,13 +44,12 @@ export function promise<
     Record<`watch${Capitalize<Prop & string>}`, (cb: (val: T) => void) => void>,
   Prop extends keyof This,
 >(prop: Prop) {
-  type Res = T | Error | undefined;
   return function decorator(
-    target: ClassAccessorDecoratorTarget<This, Res>,
-    context: ClassAccessorDecoratorContext<This, Res>,
-  ): ClassAccessorDecoratorResult<This, Res> | void {
+    target: ClassAccessorDecoratorTarget<This, ObservableAsyncValue<T>>,
+    context: ClassAccessorDecoratorContext<This, ObservableAsyncValue<T>>,
+  ): ClassAccessorDecoratorResult<This, ObservableAsyncValue<T>> | void {
     let hasInitialized = false;
-    const observer: ClassAccessorDecoratorResult<This, Res> | void = observable(target, context);
+    const observer: ClassAccessorDecoratorResult<This, ObservableAsyncValue<T>> | void = observable(target, context);
     let wasWatched = false;
     const atom = mobx.createAtom(Math.random().toString(), () => {
       wasWatched = true;
@@ -109,13 +108,12 @@ export function map<
     Record<`watch${Capitalize<Prop & string>}`, (cb: (val: Map<string, T>) => void) => void>,
   Prop extends keyof This,
 >(prop: Prop) {
-  type Res = ObservableAsyncMapGenerator<T>;
   return function decorator(
-    target: ClassAccessorDecoratorTarget<This, Res>,
-    context: ClassAccessorDecoratorContext<This, Res>,
-  ): ClassAccessorDecoratorResult<This, Res> {
+    target: ClassAccessorDecoratorTarget<This, ObservableAsyncMapGenerator<T>>,
+    context: ClassAccessorDecoratorContext<This, ObservableAsyncMapGenerator<T>>,
+  ): ClassAccessorDecoratorResult<This, ObservableAsyncMapGenerator<T>> {
     let hasObserved = false;
-    const observer: ClassAccessorDecoratorResult<This, { value: Res; loading: boolean }> | void =
+    const observer: ClassAccessorDecoratorResult<This, { value: ObservableAsyncMapGenerator<T>; loading: boolean }> | void =
       observable(target, context);
     let wasWatched = false;
     const atom = mobx.createAtom(Math.random().toString(), () => {
@@ -203,13 +201,12 @@ export function set<
     Record<`watch${Capitalize<Prop & string>}`, (cb: (val: Set<T>) => void) => void>,
   Prop extends keyof This,
 >(prop: Prop) {
-  type Res = ObservableAsyncSetGenerator<T>;
   return function decorator(
-    target: ClassAccessorDecoratorTarget<This, Res>,
-    context: ClassAccessorDecoratorContext<This, Res>,
-  ): ClassAccessorDecoratorResult<This, Res> {
+    target: ClassAccessorDecoratorTarget<This, ObservableAsyncSetGenerator<T>>,
+    context: ClassAccessorDecoratorContext<This, ObservableAsyncSetGenerator<T>>,
+  ): ClassAccessorDecoratorResult<This, ObservableAsyncSetGenerator<T>> {
     let hasObserved = false;
-    const observer: ClassAccessorDecoratorResult<This, { value: Res; loading: boolean }> | void =
+    const observer: ClassAccessorDecoratorResult<This, { value: ObservableAsyncSetGenerator<T>; loading: boolean }> | void =
       observable(target, context);
     let wasWatched = false;
     const atom = mobx.createAtom(Math.random().toString(), () => {
@@ -291,13 +288,12 @@ export function array<
     Record<`watch${Capitalize<Prop & string>}`, (cb: (val: T[]) => void) => void>,
   Prop extends keyof This,
 >(prop: Prop) {
-  type Res = ObservableAsyncGenerator<T>;
   return function decorator(
-    target: ClassAccessorDecoratorTarget<This, Res>,
-    context: ClassAccessorDecoratorContext<This, Res>,
-  ): ClassAccessorDecoratorResult<This, Res> {
+    target: ClassAccessorDecoratorTarget<This, ObservableAsyncGenerator<T>>,
+    context: ClassAccessorDecoratorContext<This, ObservableAsyncGenerator<T>>,
+  ): ClassAccessorDecoratorResult<This, ObservableAsyncGenerator<T>> {
     let hasObserved = false;
-    const observer: ClassAccessorDecoratorResult<This, { value: Res; loading: boolean }> | void =
+    const observer: ClassAccessorDecoratorResult<This, { value: ObservableAsyncGenerator<T>; loading: boolean }> | void =
       observable(target, context);
     let wasWatched = false;
     const atom = mobx.createAtom(Math.random().toString(), () => {

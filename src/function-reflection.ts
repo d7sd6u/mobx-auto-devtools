@@ -1,4 +1,4 @@
-export const reflectFunctionParams = (f: UnknownFunction) =>
+export const reflectFunctionParams = (f: UnknownFunction): string[] =>
   /(?:(?:function)?\s*\w*)?\s*(?:\((.*?)\)|([^\s]+))/
     .exec(
       f

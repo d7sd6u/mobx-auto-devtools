@@ -46,7 +46,7 @@ function createDevtoolsConnection(name: string, root: Serializable) {
   };
   return dev;
 }
-export function setupDevtools(name: string, root: Serializable) {
+export function setupDevtools(name: string, root: Serializable): void {
   try {
     register(mobx);
 

@@ -7,7 +7,7 @@ export interface SagaData {
   object?: object;
 }
 const sagaData: Record<string, SagaData> = {};
-export function getCurrentSagaData() {
+export function getCurrentSagaData(): SagaData | undefined {
   const { stack } = new Error();
   const found = stack?.match(/(?:^|\n)(\d{20})@/);
   if (!found) {
@@ -17,13 +17,13 @@ export function getCurrentSagaData() {
   return sagaData[found[1]!];
 }
 const origFunctions = new WeakMap<UnknownFunction, UnknownFunction>();
-export function getOrigFunction(fn: UnknownFunction) {
+export function getOrigFunction(fn: UnknownFunction): Function | undefined {
   return origFunctions.get(fn);
 }
 export function saga<This extends object, Args extends any[], Return extends Promise<unknown>>(
   target: (this: This, ...args: Args) => Return,
   context: ClassMethodDecoratorContext<This, (this: This, ...args: Args) => Return>,
-) {
+): typeof target | undefined {
   const methodName = String(context.name);
 
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion

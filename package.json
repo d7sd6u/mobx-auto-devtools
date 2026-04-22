@@ -1,18 +1,20 @@
 {
   "name": "mobx-auto-devtools",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "",
   "keywords": [],
   "license": "LGPL-3.0-only",
   "author": "d7sd6u",
   "type": "module",
-  "main": "index.js",
+  "main": "./dist/index.mjs",
   "scripts": {
     "typecheck": "tsgo --noEmit",
     "lint": "oxlint --type-aware",
     "format": "oxfmt",
     "bundle": "tsdown"
   },
+  "types": "./dist/index.d.mts",
+  "module": "./dist/index.mjs",
   "files": [
     "dist"
   ],

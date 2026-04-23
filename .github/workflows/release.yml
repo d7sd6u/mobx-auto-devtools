@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   release:
@@ -20,6 +21,10 @@ jobs:
 
       - name: Cache Nix store
         uses: DeterminateSystems/magic-nix-cache-action@main
+        with:
+          use-flakehub: false
+
+      - uses: DeterminateSystems/flake-checker-action@main
 
       - name: Install dependencies
         run: nix develop --command pnpm install --frozen-lockfile

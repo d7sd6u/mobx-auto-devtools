@@ -4,6 +4,7 @@ import JSAN from "jsan";
 import { runInAction, spy } from "mobx";
 import * as mobx from "mobx";
 import type { PureSpyEvent } from "mobx/dist/internal";
+import type {} from "@redux-devtools/extension";
 
 import { getConstructor, reflectFunctionParams } from "./function-reflection";
 import { getObservableMap, revive, Serializable, serializedRoot } from "./mobx";

@@ -1,5 +1,4 @@
 // oxlint-disable typescript/no-unsafe-type-assertion
-import "@redux-devtools/extension";
 import JSAN from "jsan";
 import * as mobx from "mobx";
 

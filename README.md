@@ -34,3 +34,7 @@ function Node({ node }: { node: Node }) {
   );
 }
 ```
+
+## Limitations
+
+Currently, arrow syntax in instance fields is not supported for time-travel. `this` value as well as the function initializer are not accessible by any means and thus instances of such classes can't be created without using constructor (which can have arbitrary side-effects and arguments required).

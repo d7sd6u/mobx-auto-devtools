@@ -1,6 +1,7 @@
 // oxlint-disable typescript/no-unsafe-type-assertion
 import JSAN from "jsan";
 import * as mobx from "mobx";
+import { getConstructor } from "./function-reflection";
 
 export class Serializable {
   static knownConstructors: Map<string, typeof Serializable> = new Map();
@@ -70,6 +71,8 @@ export class Serializable {
       console.error("Couldn't deserialize ", v.__serializedType__);
       return v.data;
     }
+    if (isExternalId(v))
+      return getExternalObjectById(v);
     return v;
   }
 }
@@ -169,6 +172,8 @@ function serializeObservableArray(v: Array<unknown>) {
   }
   return mapped;
 }
+const externalObjects = new Map<ExternalObjectId, unknown>();
+(window as typeof window & { externalObjects?: unknown }).externalObjects = externalObjects;
 function serializeObservable(v: unknown): unknown {
   if (v instanceof Serializable) return v.toObj();
   if (v instanceof mobx.ObservableSet) {
@@ -181,9 +186,38 @@ function serializeObservable(v: unknown): unknown {
     return serializeObservableArray(v);
   }
   if (!!v && typeof v === "object") {
+    if (isExternalObject(v)) createExternalObject(v);
     return Object.fromEntries(Object.entries(v).map(([k, val]) => [k, serializeObservable(val)]));
   }
   return v;
+}
+
+function isExternalId(id: unknown): id is ExternalObjectId {
+  return typeof id === 'string' && id.startsWith('external-class-');
+}
+function getExternalObjectById(id: ExternalObjectId) {
+  return externalObjects.get(id);
+}
+type ExternalObjectId = `external-class-${string}`;
+
+function createExternalObject(v: object): ExternalObjectId {
+  const existingId = externalObjects.entries().find(([, val]) => val === v)?.[0];
+  if (existingId) return existingId;
+  const name = String(v);
+  const idFromName = `external-class-${name}` as const;
+  if (name !== String({})) {
+    externalObjects.set(idFromName, v);
+    return idFromName;
+  }
+  const className = getConstructor(v)?.name ?? "anonymous";
+  const randId = Math.random().toString().slice(4);
+  const id = `external-class-${className}-${randId}` as const;
+  externalObjects.set(id, v);
+  return id;
+}
+
+function isExternalObject(v: object) {
+  return getConstructor(v) !== Object || Object.values(v).some((v) => typeof v === "function");
 }
 
 mobx.configure({

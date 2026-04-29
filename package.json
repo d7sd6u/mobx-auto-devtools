@@ -5,25 +5,27 @@
   "keywords": [],
   "license": "LGPL-3.0-only",
   "author": "d7sd6u",
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "scripts": {
     "typecheck": "tsgo --noEmit",
     "lint": "oxlint --type-aware",
     "format": "oxfmt",
     "bundle": "tsdown"
   },
-  "types": "./dist/index.d.mts",
-  "module": "./dist/index.mjs",
-  "files": [
-    "dist"
-  ],
   "dependencies": {
-    "jsan": "^3.1.14",
+    "@redux-devtools/extension": "^4.0.0",
     "friendly-mobx-console-formatter": "^0.0.2",
-    "@redux-devtools/extension": "^4.0.0"
+    "jsan": "^3.1.14"
   },
   "devDependencies": {
+    "@babel/plugin-proposal-decorators": "^7.29.0",
+    "@rolldown/plugin-babel": "^0.2.3",
     "@tsconfig/strictest": "^2.0.5",
     "@types/jsan": "^3.1.5",
     "@types/node": "^22.13.17",
@@ -31,7 +33,8 @@
     "oxfmt": "^0.45.0",
     "oxlint": "^1.60.0",
     "oxlint-tsgolint": "^0.21.1",
-    "tsdown": "^0.21.9"
+    "tsdown": "^0.21.9",
+    "vitest": "^4.1.5"
   },
   "peerDependencies": {
     "mobx": "^6.15.0"

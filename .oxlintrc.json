@@ -1,0 +1,28 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc"],
+  "categories": {
+    "correctness": "error",
+    "nursery": "error",
+    "pedantic": "error",
+    "perf": "error",
+    "suspicious": "error"
+  },
+  "options": {
+    "typeAware": true
+  },
+  "rules": {
+    "typescript/prefer-readonly-parameter-types": "off",
+    "eslint/no-extra-boolean-cast": "off",
+    "typescript/strict-boolean-expressions": "off",
+    "eslint/no-undef": "off",
+    "unicorn/no-useless-undefined": "off",
+    "typescript/no-unsafe-function-type": "off",
+    "typescript/no-meaningless-void-operator": "off",
+    "typescript/no-confusing-void-expression": "off",
+    "eslint/no-promise-executor-return": ["off", { "allowVoid": true }]
+  },
+  "env": {
+    "builtin": true
+  }
+}

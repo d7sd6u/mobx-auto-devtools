@@ -49,7 +49,10 @@ export function promise<
     context: ClassAccessorDecoratorContext<This, ObservableAsyncValue<T>>,
   ): ClassAccessorDecoratorResult<This, ObservableAsyncValue<T>> | void {
     let hasInitialized = false;
-    const observer: ClassAccessorDecoratorResult<This, ObservableAsyncValue<T>> | void = observable(target, context);
+    const observer: ClassAccessorDecoratorResult<This, ObservableAsyncValue<T>> | void = observable(
+      target,
+      context,
+    );
     let wasWatched = false;
     const atom = mobx.createAtom(Math.random().toString(), () => {
       wasWatched = true;
@@ -113,8 +116,10 @@ export function map<
     context: ClassAccessorDecoratorContext<This, ObservableAsyncMapGenerator<T>>,
   ): ClassAccessorDecoratorResult<This, ObservableAsyncMapGenerator<T>> {
     let hasObserved = false;
-    const observer: ClassAccessorDecoratorResult<This, { value: ObservableAsyncMapGenerator<T>; loading: boolean }> | void =
-      observable(target, context);
+    const observer: ClassAccessorDecoratorResult<
+      This,
+      { value: ObservableAsyncMapGenerator<T>; loading: boolean }
+    > | void = observable(target, context);
     let wasWatched = false;
     const atom = mobx.createAtom(Math.random().toString(), () => {
       wasWatched = true;
@@ -206,8 +211,10 @@ export function set<
     context: ClassAccessorDecoratorContext<This, ObservableAsyncSetGenerator<T>>,
   ): ClassAccessorDecoratorResult<This, ObservableAsyncSetGenerator<T>> {
     let hasObserved = false;
-    const observer: ClassAccessorDecoratorResult<This, { value: ObservableAsyncSetGenerator<T>; loading: boolean }> | void =
-      observable(target, context);
+    const observer: ClassAccessorDecoratorResult<
+      This,
+      { value: ObservableAsyncSetGenerator<T>; loading: boolean }
+    > | void = observable(target, context);
     let wasWatched = false;
     const atom = mobx.createAtom(Math.random().toString(), () => {
       wasWatched = true;
@@ -293,8 +300,10 @@ export function array<
     context: ClassAccessorDecoratorContext<This, ObservableAsyncGenerator<T>>,
   ): ClassAccessorDecoratorResult<This, ObservableAsyncGenerator<T>> {
     let hasObserved = false;
-    const observer: ClassAccessorDecoratorResult<This, { value: ObservableAsyncGenerator<T>; loading: boolean }> | void =
-      observable(target, context);
+    const observer: ClassAccessorDecoratorResult<
+      This,
+      { value: ObservableAsyncGenerator<T>; loading: boolean }
+    > | void = observable(target, context);
     let wasWatched = false;
     const atom = mobx.createAtom(Math.random().toString(), () => {
       wasWatched = true;

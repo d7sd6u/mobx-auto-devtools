@@ -1,0 +1,6 @@
+{
+  "sortImports": true,
+  "sortPackageJson": true,
+  "singleQuote": false,
+  "ignorePatterns": ["LICENSE.md"]
+}

@@ -8,7 +8,7 @@ import * as mobx from "mobx";
 import type { PureSpyEvent } from "mobx/dist/internal";
 
 import { getConstructor, reflectFunctionParams } from "./function-reflection";
-import { getObservableMap, revive, Serializable, serializedRoot } from "./mobx";
+import { getObservableMap, Serializable, serializedRoot } from "./mobx";
 import { getCurrentSagaData, type SagaData, getOrigFunction } from "./mobx-saga";
 
 function createDevtoolsConnection(name: string, root: Serializable) {
@@ -62,7 +62,7 @@ export function setupDevtools(name: string, root: Serializable): void {
       }
       if (event.type !== "DISPATCH") return;
 
-      const state = parseStateFromEvent(event, root);
+      const state = parseStateFromEvent(event) as typeof root;
 
       runInAction(function devtoolsDispatch() {
         for (const key of getObservableMap(state).keys()) {
@@ -97,10 +97,12 @@ export function setupDevtools(name: string, root: Serializable): void {
   }
   (window as typeof window & Record<`mobx_${string}_root`, unknown>)[`mobx_${name}_root`] = root;
 }
-function parseStateFromEvent(
-  event: { type: "DISPATCH"; source: string; payload: object; state: string },
-  root: Serializable,
-) {
+function parseStateFromEvent(event: {
+  type: "DISPATCH";
+  source: string;
+  payload: object;
+  state: string;
+}) {
   const rawState = JSAN.parse(
     JSON.stringify(
       JSON.parse(event.state, (_, val: unknown) => {

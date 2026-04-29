@@ -11,6 +11,7 @@ export class Serializable {
   }
   static revivedObjects: WeakMap<object, Serializable> = new WeakMap();
   static serializedObjects: WeakMap<object, unknown> = new WeakMap();
+  // oxlint-disable-next-line max-lines-per-function
   toObj(clear?: boolean): object {
     if (clear) Serializable.serializedObjects = new WeakMap();
     const serialized = Serializable.serializedObjects.get(this);
@@ -20,11 +21,43 @@ export class Serializable {
     const res = { data: obj, __serializedType__: Class.name };
     Serializable.serializedObjects.set(this, res);
 
+    if (!Class.prototype[mobx.$mobx]) {
+      const getters: Record<string, () => unknown> = {};
+      for (const [key, val] of getObservableMap(this)) {
+        if (mobx.isObservable(val)) {
+          getters[key] = val.derivation;
+        }
+      }
+      Object.defineProperty(Class.prototype, mobx.$mobx, {
+        get() {
+          const target = this;
+          return {
+            getObservablePropValue_(key) {
+              return getters[key]?.apply(target);
+            },
+          };
+        },
+      });
+    }
     Object.assign(obj, {
       ...Object.fromEntries(Object.entries(this).map(([k, v]) => [k, serializeObservable(v)])),
       ...Object.fromEntries(
-        [...getObservableMap(this)].map(([k]) => [
-          k,
+        getAllEntries(this)
+          .filter(
+            ([k, v]) =>
+              typeof k === "string" &&
+              !v.set &&
+              !!v.get &&
+              !Object.keys(this).includes(k) &&
+              !getObservableMap(this)
+                .keys()
+                .some((key) => key === k),
+          )
+          .map(([k, v]) => [`get ${k as string}()`, serializeObservable(v.get?.())]),
+      ),
+      ...Object.fromEntries(
+        [...getObservableMap(this)].map(([k, val]) => [
+          getConstructor(val)?.name === "ComputedValue" ? `get ${k}()` : k,
           serializeObservable((this as Record<string, unknown>)[k]),
         ]),
       ),
@@ -36,15 +69,77 @@ export class Serializable {
     if (revived) return revived;
     // const fresh = {};
     Object.setPrototypeOf(v, Self.prototype);
-    if (data) Object.assign(v, data);
+    if (data) {
+      for (const key of Reflect.ownKeys(data)) {
+        const descriptor = Object.getOwnPropertyDescriptor(data, key);
+        const targetDescriptor = getPropertyDescriptor(v, key);
+
+        if (descriptor?.enumerable && (targetDescriptor?.set || !targetDescriptor?.get)) {
+          v[key as keyof typeof v] = data[key as keyof typeof data];
+        }
+      }
+    }
     (v as Serializable).init();
     Serializable.revivedObjects.set(v, v as Serializable);
     return v;
   }
   init(): void {}
   static fromObj(obj: unknown): unknown {
-    return revive(obj);
+    return revive(transformGetterNamedKeys(obj));
   }
+}
+function getAllEntries(obj: object) {
+  const entries = [];
+  const seen = new Set();
+
+  let current: object | null = obj;
+
+  while (current !== null && current !== Object.prototype) {
+    for (const key of Reflect.ownKeys(current)) {
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      try {
+        const desc = Object.getOwnPropertyDescriptor(current, key)!;
+        // oxlint-disable-next-line no-unused-expressions
+        entries.push([key, desc] as const);
+      } catch {}
+    }
+
+    current = Object.getPrototypeOf(current) as object | null;
+  }
+
+  return entries;
+}
+function getPropertyDescriptor(obj: object, prop: string | symbol) {
+  let current: object | null = obj;
+
+  while (current !== null) {
+    const descriptor = Object.getOwnPropertyDescriptor(current, prop);
+
+    if (descriptor) {
+      return descriptor;
+    }
+
+    current = Object.getPrototypeOf(current) as object | null;
+  }
+
+  return undefined;
+}
+function transformGetterNamedKeys(obj: unknown, visited = new Set()): unknown {
+  if (typeof obj === "object" && !!obj) {
+    if (visited.has(obj)) return obj;
+    visited.add(obj);
+    for (const key in obj) {
+      transformGetterNamedKeys(obj[key as keyof typeof obj], visited);
+      if (/^get .*\(\)$/.test(key)) {
+        const val = obj[key as keyof typeof obj];
+        delete (obj as Record<string, unknown>)[key];
+        obj[key.slice(4, -2) as keyof typeof obj] = val;
+      }
+    }
+  }
+  return obj;
 }
 function isSerializedTypeClass(v: unknown): v is { __serializedType__: string; data: object } {
   return (
@@ -58,8 +153,7 @@ function isSerializedTypeClass(v: unknown): v is { __serializedType__: string; d
   );
 }
 export function getObservableMap(v: unknown): Map<string, { raw(): unknown }> {
-  const mobxSymbol = Object.getOwnPropertySymbols(v)[0];
-  if (!mobxSymbol) return new Map();
+  const mobxSymbol = mobx.$mobx;
   return (
     (v as Record<string | symbol, { values_: Map<string, { raw(): unknown }> }>)[mobxSymbol]
       ?.values_ ?? new Map<string, { raw(): unknown }>()

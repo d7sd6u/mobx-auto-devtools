@@ -1,4 +1,4 @@
-import { observable } from "mobx";
+import { action, computed, observable } from "mobx";
 // oxlint-disable max-classes-per-file
 // oxlint-disable max-lines-per-function
 import { test, expect, describe } from "vitest";
@@ -19,6 +19,77 @@ describe("Serializable.toObj", () => {
         },
       }
     `);
+    expect(Serializable.fromObj(obj.toObj())).toEqual(obj);
+  });
+  test("it works with computeds", () => {
+    class Test extends Serializable {
+      @computed get ordinaryField() {
+        return 123;
+      }
+      get other() {
+        return "";
+      }
+      @action test() {
+        return this.ordinaryField;
+      }
+    }
+    const obj = new Test();
+    expect(obj.toObj()).toMatchInlineSnapshot(`
+      {
+        "__serializedType__": "Test",
+        "data": {
+          "get ordinaryField()": 123,
+          "get other()": "",
+        },
+      }
+    `);
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+    const serialized = Serializable.fromObj(obj.toObj()) as Test;
+    expect(serialized.test()).toBe(123);
+    expect(serialized.ordinaryField).toBe(123);
+    expect(Serializable.fromObj(obj.toObj())).toEqual(obj);
+  });
+  test.fails("it works with arrow fn fields", () => {
+    class Test extends Serializable {
+      @observable accessor ordinaryField = 123;
+      @action test = () => {
+        return this.ordinaryField;
+      };
+    }
+    const obj = new Test();
+    expect(obj.toObj()).toMatchInlineSnapshot(`
+      {
+        "__serializedType__": "Test",
+        "data": {
+          "ordinaryField": 123,
+        },
+      }
+    `);
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+    const serialized = Serializable.fromObj(obj.toObj()) as Test;
+    expect(serialized.test()).toBe(123);
+    serialized.ordinaryField = 444;
+    expect(serialized.test()).toBe(444);
+    expect(Serializable.fromObj(obj.toObj())).toEqual(obj);
+  });
+  test("it works with getters", () => {
+    class Test extends Serializable {
+      get ordinaryField() {
+        return 123;
+      }
+    }
+    const obj = new Test();
+    expect(obj.toObj()).toMatchInlineSnapshot(`
+      {
+        "__serializedType__": "Test",
+        "data": {
+          "get ordinaryField()": 123,
+        },
+      }
+    `);
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+    const serialized = Serializable.fromObj(obj.toObj()) as Test;
+    expect(serialized.ordinaryField).toBe(123);
     expect(Serializable.fromObj(obj.toObj())).toEqual(obj);
   });
   test("it works with ordinary object fields", () => {

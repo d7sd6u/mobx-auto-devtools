@@ -74,8 +74,9 @@ describe("Serializable.toObj", () => {
   });
   test("it works with getters", () => {
     class Test extends Serializable {
-      get ordinaryField() {
-        return 123;
+      ordinaryField = 123;
+      get getter() {
+        return this.ordinaryField;
       }
     }
     const obj = new Test();
@@ -83,13 +84,16 @@ describe("Serializable.toObj", () => {
       {
         "__serializedType__": "Test",
         "data": {
-          "get ordinaryField()": 123,
+          "get getter()": 123,
+          "ordinaryField": 123,
         },
       }
     `);
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const serialized = Serializable.fromObj(obj.toObj()) as Test;
-    expect(serialized.ordinaryField).toBe(123);
+    serialized.ordinaryField = 444;
+    expect(serialized.getter).toBe(444);
+    serialized.ordinaryField = 123;
     expect(Serializable.fromObj(obj.toObj())).toEqual(obj);
   });
   test("it works with ordinary object fields", () => {

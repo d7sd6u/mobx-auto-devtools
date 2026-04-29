@@ -53,7 +53,7 @@ export class Serializable {
                 .keys()
                 .some((key) => key === k),
           )
-          .map(([k, v]) => [`get ${k as string}()`, serializeObservable(v.get?.())]),
+          .map(([k, v]) => [`get ${k as string}()`, serializeObservable(v.get?.apply(this))]),
       ),
       ...Object.fromEntries(
         [...getObservableMap(this)].map(([k, val]) => [

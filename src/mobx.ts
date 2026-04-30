@@ -21,26 +21,29 @@ export class Serializable {
     const res = { data: obj, __serializedType__: Class.name };
     Serializable.serializedObjects.set(this, res);
 
-    if (!Class.prototype[mobx.$mobx]) {
+    if (!(Class.prototype as Record<symbol, unknown>)[mobx.$mobx]) {
       const getters: Record<string, () => unknown> = {};
       for (const [key, val] of getObservableMap(this)) {
-        if (mobx.isObservable(val)) {
+        if (mobx.isObservable(val) && val.derivation) {
           getters[key] = val.derivation;
         }
       }
       Object.defineProperty(Class.prototype, mobx.$mobx, {
-        get() {
-          const target = this;
+        get(this: unknown) {
           return {
-            getObservablePropValue_(key) {
-              return getters[key]?.apply(target);
+            getObservablePropValue_: (key: string) => {
+              return getters[key]?.apply(this);
             },
           };
         },
       });
     }
     Object.assign(obj, {
-      ...Object.fromEntries(Object.entries(this).map(([k, v]) => [k, serializeObservable(v)])),
+      ...Object.fromEntries(
+        Object.entries(this)
+          .filter(([, v]) => typeof v !== "function")
+          .map(([k, v]) => [k, serializeObservable(v)]),
+      ),
       ...Object.fromEntries(
         getAllEntries(this)
           .filter(
@@ -77,6 +80,19 @@ export class Serializable {
         if (descriptor?.enumerable && (targetDescriptor?.set || !targetDescriptor?.get)) {
           v[key as keyof typeof v] = data[key as keyof typeof data];
         }
+      }
+    }
+    for (const [key, descriptor] of getAllEntries(Self.prototype)) {
+      if (
+        typeof descriptor.value === "function" &&
+        (descriptor.value as Record<symbol, unknown> & ((...args: unknown[]) => unknown))[
+          Symbol.for("class-arrow-methods-loosening.bounded")
+        ]
+      ) {
+        const fn = descriptor.value as (...args: unknown[]) => unknown;
+        (v as Record<string | symbol, (...args: unknown[]) => unknown>)[key] = fn.bind(v) as (
+          ...args: unknown[]
+        ) => unknown;
       }
     }
     (v as Serializable).init();
@@ -152,7 +168,9 @@ function isSerializedTypeClass(v: unknown): v is { __serializedType__: string; d
     !!v.data
   );
 }
-export function getObservableMap(v: unknown): Map<string, { raw(): unknown }> {
+export function getObservableMap(
+  v: unknown,
+): Map<string, { raw(): unknown; derivation?: () => unknown }> {
   const mobxSymbol = mobx.$mobx;
   return (
     (v as Record<string | symbol, { values_: Map<string, { raw(): unknown }> }>)[mobxSymbol]

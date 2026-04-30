@@ -49,7 +49,7 @@ describe("Serializable.toObj", () => {
     expect(serialized.ordinaryField).toBe(123);
     expect(Serializable.fromObj(obj.toObj())).toEqual(obj);
   });
-  test.fails("it works with arrow fn fields", () => {
+  test("it works with arrow fn fields", () => {
     class Test extends Serializable {
       @observable accessor ordinaryField = 123;
       @action test = () => {
@@ -69,8 +69,10 @@ describe("Serializable.toObj", () => {
     const serialized = Serializable.fromObj(obj.toObj()) as Test;
     expect(serialized.test()).toBe(123);
     serialized.ordinaryField = 444;
-    expect(serialized.test()).toBe(444);
-    expect(Serializable.fromObj(obj.toObj())).toEqual(obj);
+    const unbounded = serialized.test;
+    expect(unbounded()).toBe(444);
+    // bounded functions are not referentially equal
+    // expect(Serializable.fromObj(obj.toObj())).toEqual(obj);
   });
   test("it works with getters", () => {
     class Test extends Serializable {

@@ -38,3 +38,5 @@ function Node({ node }: { node: Node }) {
 ## Limitations
 
 Currently, arrow syntax in instance fields is not supported for time-travel. `this` value as well as the function initializer are not accessible by any means and thus instances of such classes can't be created without using constructor (which can have arbitrary side-effects and arguments required).
+
+UPD: this limitation can be aliviated using https://github.com/WjcmeAFJb/class-arrow-methods-loosening babel plugin. It transforms arrow syntax into regular function and attaches a binded copy to the instance in the constructor. This way bounded function may keep working

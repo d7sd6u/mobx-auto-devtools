@@ -1,4 +1,5 @@
 import babel from "@rolldown/plugin-babel";
+import classArrowMethodsLoosening from "class-arrow-methods-loosening/babel";
 import { defineConfig } from "vitest/config";
 
 function decoratorPreset(options: Record<string, unknown>) {
@@ -15,7 +16,12 @@ function decoratorPreset(options: Record<string, unknown>) {
   };
 }
 export default defineConfig({
-  plugins: [babel({ presets: [decoratorPreset({ version: "2023-11" })] })],
+  plugins: [
+    babel({
+      plugins: [classArrowMethodsLoosening],
+      presets: [decoratorPreset({ version: "2023-11" })],
+    }),
+  ],
   test: {
     // ...
   },

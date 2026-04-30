@@ -15,7 +15,14 @@ function createDevtoolsConnection(name: string, root: Serializable) {
   if (!window.__REDUX_DEVTOOLS_EXTENSION__) throw new Error("");
   const devTools = window.__REDUX_DEVTOOLS_EXTENSION__.connect({
     name,
-    trace: true,
+    trace: (action) => {
+      if ("stack" in action && typeof action.stack === "string") {
+        const stack = action.stack;
+        delete action.stack;
+        return stack;
+      }
+      return new Error().stack ?? "";
+    },
     serialize: true,
     actionCreators: Object.fromEntries(
       Object.getOwnPropertyNames(Object.getPrototypeOf(root))
@@ -48,6 +55,7 @@ function createDevtoolsConnection(name: string, root: Serializable) {
   };
   return dev;
 }
+// oxlint-disable-next-line max-lines-per-function
 export function setupDevtools(name: string, root: Serializable): void {
   try {
     register(mobx);
@@ -72,11 +80,24 @@ export function setupDevtools(name: string, root: Serializable): void {
     });
     let batch: EnrichedSpyEvent[] = [];
 
-    spy((event) => {
+    spy((event: PureSpyEvent & { stack?: string | undefined }) => {
+      if (
+        event.type !== "report-end" &&
+        event.type !== "scheduled-reaction" &&
+        event.type !== "reaction"
+      ) {
+        event.stack = new Error().stack;
+      }
       if (event.type === "action") {
         const fnSource = getFn(event)?.toString();
-        if (fnSource?.startsWith("async "))
-          dev.send({ type: actionName(event) + ".start", ...getArgs(event) }, serializedRoot(root));
+        if (fnSource?.startsWith("async ")) {
+          const action: { type: string; stack?: string } = {
+            type: actionName(event) + ".start",
+            ...getArgs(event),
+          };
+          if (event.stack) action.stack = event.stack;
+          dev.send(action, serializedRoot(root));
+        }
       }
       if (event.type === "scheduled-reaction" || event.type === "reaction") {
         batch.push(event);
@@ -124,7 +145,7 @@ function parseStateFromEvent(event: {
 }
 
 function batchedSpy(
-  events: PureSpyEvent[],
+  events: (PureSpyEvent & { stack?: string })[],
   sentVal: unknown,
   send: (action: { type: string }, payload: unknown) => void,
 ) {
@@ -134,7 +155,7 @@ function batchedSpy(
   const actions = events.filter((v) => v.type === "action");
   if (actions.length > 0) {
     const actionNames = actions.map((act) => actionName(act));
-    const action: { type: string; args?: Record<string, unknown>[] } = {
+    const action: { type: string; stack?: string; args?: Record<string, unknown>[] } = {
       type: [...new Set(actionNames)].join(","),
     };
     if (actions.length === 1) {
@@ -142,6 +163,11 @@ function batchedSpy(
     } else {
       action.args = actions.map((act) => getArgs(act));
     }
+    if (events.some((e) => e.stack))
+      action.stack = events
+        .map((v) => v.stack)
+        .filter((v) => !!v)
+        .join("\n  at other event\n");
     send(action, sentVal);
   } else if (
     events.some(
@@ -153,12 +179,15 @@ function batchedSpy(
     )
   ) {
     const data = getCurrentSagaData();
-    send(
-      {
-        type: data ? `${getConstructor(data.object)?.name}.${data.actionName}` : "<anonymous>",
-      },
-      sentVal,
-    );
+    const action: { type: string; stack?: string } = {
+      type: data ? `${getConstructor(data.object)?.name}.${data.actionName}` : "<anonymous>",
+    };
+    if (events.some((e) => e.stack))
+      action.stack = events
+        .map((v) => v.stack)
+        .filter((v) => !!v)
+        .join("\n  at other event\n");
+    send(action, sentVal);
   }
 }
 type Action = PureSpyEvent & { type: "action" } & { data?: SagaData };

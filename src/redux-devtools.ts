@@ -78,7 +78,7 @@ export function setupDevtools(name: string, root: Serializable): void {
         if (fnSource?.startsWith("async "))
           dev.send({ type: actionName(event) + ".start", ...getArgs(event) }, serializedRoot(root));
       }
-      if (event.type === "scheduled-reaction") {
+      if (event.type === "scheduled-reaction" || event.type === "reaction") {
         batch.push(event);
         batchedSpy(batch, serializedRoot(root), (...args) => {
           dev.send(...args);

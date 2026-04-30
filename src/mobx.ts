@@ -380,7 +380,9 @@ export function revive(raw: unknown, revived: Map<unknown, unknown> = new Map())
       return mapObj;
     }
     if (v.__serializedType__ === "Set") {
-      const data = v.data as unknown[];
+      const data = Array.isArray(v.data)
+        ? (v.data as unknown[])
+        : Array.from({ ...v.data, length: Object.keys(v.data).length });
       const marker = data.find(
         (val, i) => i === 0 && typeof val === "object" && !!val && "#" in val,
       );

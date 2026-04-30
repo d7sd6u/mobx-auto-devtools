@@ -158,7 +158,7 @@ function batchedSpy(
   const actions = events.filter((v) => v.type === "action");
   if (actions.length > 0) {
     const actionNames = actions.map((act) => actionName(act));
-    const action: { type: string; stack?: string; args?: Record<string, unknown>[] } = {
+    const action: { type: string; stack?: string | undefined; args?: Record<string, unknown>[] } = {
       type: [...new Set(actionNames)].join(","),
     };
     if (actions.length === 1) {
@@ -167,10 +167,7 @@ function batchedSpy(
       action.args = actions.map((act) => getArgs(act));
     }
     if (events.some((e) => e.stack))
-      action.stack = events
-        .map((v) => v.stack)
-        .filter((v) => !!v)
-        .join("\n  at other event\n");
+      action.stack = events.find((v) => v.type !== "action" && v.stack)?.stack;
     send(action, sentVal);
   } else if (
     events.some(
@@ -182,14 +179,11 @@ function batchedSpy(
     )
   ) {
     const data = getCurrentSagaData();
-    const action: { type: string; stack?: string } = {
+    const action: { type: string; stack?: string | undefined } = {
       type: data ? `${getConstructor(data.object)?.name}.${data.actionName}` : "<anonymous>",
     };
     if (events.some((e) => e.stack))
-      action.stack = events
-        .map((v) => v.stack)
-        .filter((v) => !!v)
-        .join("\n  at other event\n");
+      action.stack = events.find((v) => v.type !== "action" && v.stack)?.stack;
     send(action, sentVal);
   }
 }

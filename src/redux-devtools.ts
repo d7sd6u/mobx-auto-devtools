@@ -11,6 +11,7 @@ import { getConstructor, reflectFunctionParams } from "./function-reflection";
 import { getObservableMap, Serializable, serializedRoot } from "./mobx";
 import { getCurrentSagaData, type SagaData, getOrigFunction } from "./mobx-saga";
 
+// oxlint-disable-next-line max-lines-per-function
 function createDevtoolsConnection(name: string, root: Serializable) {
   if (!window.__REDUX_DEVTOOLS_EXTENSION__) throw new Error("");
   const devTools = window.__REDUX_DEVTOOLS_EXTENSION__.connect({
@@ -19,10 +20,17 @@ function createDevtoolsConnection(name: string, root: Serializable) {
       if ("stack" in action && typeof action.stack === "string") {
         const stack = action.stack;
         delete action.stack;
-        return stack
-          .split("\n")
-          .filter((l) => !(l.includes("node:internal") && l.includes("async_hooks")))
-          .join("\n");
+        return (
+          "Error:\n" +
+          stack
+            .split("\n")
+            .filter(
+              (l) =>
+                !l.includes("Error:") &&
+                !(l.includes("node:internal") && l.includes("async_hooks")),
+            )
+            .join("\n")
+        );
       }
       return new Error().stack ?? "";
     },
@@ -167,7 +175,10 @@ function batchedSpy(
       action.args = actions.map((act) => getArgs(act));
     }
     if (events.some((e) => e.stack))
-      action.stack = events.find((v) => v.type !== "action" && v.stack)?.stack;
+      action.stack = events
+        .filter((v) => v.type !== "action" && v.stack)
+        .map((e) => e.stack)
+        .join("\n");
     send(action, sentVal);
   } else if (
     events.some(
@@ -183,7 +194,10 @@ function batchedSpy(
       type: data ? `${getConstructor(data.object)?.name}.${data.actionName}` : "<anonymous>",
     };
     if (events.some((e) => e.stack))
-      action.stack = events.find((v) => v.type !== "action" && v.stack)?.stack;
+      action.stack = events
+        .filter((v) => v.type !== "action" && v.stack)
+        .map((e) => e.stack)
+        .join("\n");
     send(action, sentVal);
   }
 }

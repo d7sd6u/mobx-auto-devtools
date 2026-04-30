@@ -19,7 +19,10 @@ function createDevtoolsConnection(name: string, root: Serializable) {
       if ("stack" in action && typeof action.stack === "string") {
         const stack = action.stack;
         delete action.stack;
-        return stack;
+        return stack
+          .split("\n")
+          .filter((l) => !(l.includes("node:internal") && l.includes("async_hooks")))
+          .join("\n");
       }
       return new Error().stack ?? "";
     },

@@ -1,3 +1,5 @@
+import type { AsyncLocalStorage } from "async_hooks";
+
 import { action } from "mobx";
 
 import type { UnknownFunction } from "./function-reflection";
@@ -7,9 +9,11 @@ export interface SagaData {
   object?: object;
 }
 const sagaData: Record<string, SagaData> = {};
+let asyncLocalStorage: AsyncLocalStorage<SagaData> | undefined;
 export function getCurrentSagaData(): SagaData | undefined {
+  if (asyncLocalStorage) return asyncLocalStorage?.getStore();
   const { stack } = new Error();
-  const found = stack?.match(/(?:^|\n)(\d{20})@/);
+  const found = stack?.match(/(\d{20})/);
   if (!found) {
     return undefined;
   }
@@ -32,8 +36,13 @@ export function saga<This extends object, Args extends any[], Return extends Pro
   const id = Math.random().toString().slice(2).padEnd(20, "0");
   sagaData[id] = { actionName: methodName };
   const obj = {
-    [id](this: This, ...args: Args): Return {
+    async [id](this: This, ...args: Args): Promise<Return> {
       if (sagaData[id]) sagaData[id].object = this;
+      try {
+        const { AsyncLocalStorage } = await import("node:async_hooks");
+        asyncLocalStorage = new AsyncLocalStorage();
+        return asyncLocalStorage.run(sagaData[id]!, () => actionFn.call(this, ...args));
+      } catch {}
       const result = actionFn.call(this, ...args);
       void result.finally(() => void setTimeout(() => delete sagaData[id], 30000));
       return result;
@@ -41,5 +50,7 @@ export function saga<This extends object, Args extends any[], Return extends Pro
   };
   origFunctions.set(obj[id]!, target);
 
-  return obj[id];
+  return obj[id] satisfies
+    | undefined
+    | ((this: This, ...args: Args) => Promise<Return>) as typeof target;
 }

@@ -117,7 +117,7 @@ export function setupDevtools(name: string, root: Serializable): void {
         });
         batch = [];
       } else {
-        const data = getCurrentSagaData();
+        const data = event.type === "action" ? getCurrentSagaData() : undefined;
         const enrichedEvent: EnrichedSpyEvent =
           event.type === "action" && data ? { ...event, data } : event;
         batch.push(enrichedEvent);

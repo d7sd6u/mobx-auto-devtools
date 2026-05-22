@@ -110,7 +110,7 @@ export function setupDevtools(name: string, root: Serializable): void {
           dev.send(action, serializedRoot(root));
         }
       }
-      if (event.type === "scheduled-reaction" || event.type === "reaction") {
+      if (event.type === "scheduled-reaction" /*  || event.type === "reaction" */) {
         batch.push(event);
         batchedSpy(batch, serializedRoot(root), (...args) => {
           dev.send(...args);

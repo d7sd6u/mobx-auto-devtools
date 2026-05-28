@@ -1,4 +1,4 @@
-import type { AsyncLocalStorage } from "async_hooks";
+import type { AsyncLocalStorage } from "node:async_hooks";
 
 import { action } from "mobx";
 
@@ -24,6 +24,7 @@ const origFunctions = new WeakMap<UnknownFunction, UnknownFunction>();
 export function getOrigFunction(fn: UnknownFunction): Function | undefined {
   return origFunctions.get(fn);
 }
+type Storage = typeof AsyncLocalStorage;
 export function saga<This extends object, Args extends any[], Return extends Promise<unknown>>(
   target: (this: This, ...args: Args) => Return,
   context: ClassMethodDecoratorContext<This, (this: This, ...args: Args) => Return>,
@@ -35,14 +36,24 @@ export function saga<This extends object, Args extends any[], Return extends Pro
 
   const id = Math.random().toString().slice(2).padEnd(20, "0");
   sagaData[id] = { actionName: methodName };
+  let AsyncLocalStorage: Storage | undefined | "browser";
+  void import("node:async_hooks")
+    .then((pkg) => (AsyncLocalStorage = pkg.AsyncLocalStorage))
+    .catch(() => (AsyncLocalStorage = "browser"));
+
   const obj = {
     async [id](this: This, ...args: Args): Promise<Return> {
       if (sagaData[id]) sagaData[id].object = this;
-      try {
-        const { AsyncLocalStorage } = await import("node:async_hooks");
-        asyncLocalStorage = new AsyncLocalStorage();
-        return asyncLocalStorage.run(sagaData[id]!, () => actionFn.call(this, ...args));
-      } catch {}
+      if (AsyncLocalStorage && AsyncLocalStorage !== "browser")
+        try {
+          if (!AsyncLocalStorage) {
+            AsyncLocalStorage = (await import("node:async_hooks")).AsyncLocalStorage;
+          }
+          asyncLocalStorage = new AsyncLocalStorage();
+          return asyncLocalStorage.run(sagaData[id]!, () => actionFn.call(this, ...args));
+        } catch {
+          AsyncLocalStorage = "browser";
+        }
       const result = actionFn.call(this, ...args);
       void result.finally(() => void setTimeout(() => delete sagaData[id], 30000));
       return result;

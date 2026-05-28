@@ -35,14 +35,6 @@ function createDevtoolsConnection(name: string, root: Serializable) {
       return new Error().stack ?? "";
     },
     serialize: true,
-    actionCreators: Object.fromEntries(
-      Object.getOwnPropertyNames(Object.getPrototypeOf(root))
-        .map((k) => [k, (root as Serializable & Record<string, unknown>)[k]] as const)
-        .filter(
-          (a): a is [string, (...args: unknown[]) => unknown] =>
-            typeof a[1] === "function" && a[0] !== "constructor",
-        ),
-    ),
   });
   const dev = devTools as typeof devTools & {
     subscribe: (
@@ -93,6 +85,12 @@ export function setupDevtools(name: string, root: Serializable): void {
 
     spy((event: PureSpyEvent & { stack?: string | undefined }) => {
       if (
+        event.type === "reaction" &&
+        "observableKind" in event &&
+        event.observableKind === "computed"
+      )
+        return;
+      if (
         event.type !== "report-end" &&
         event.type !== "scheduled-reaction" &&
         event.type !== "reaction"
@@ -110,7 +108,7 @@ export function setupDevtools(name: string, root: Serializable): void {
           dev.send(action, serializedRoot(root));
         }
       }
-      if (event.type === "scheduled-reaction" /*  || event.type === "reaction" */) {
+      if (event.type === "scheduled-reaction" || event.type === "reaction") {
         batch.push(event);
         batchedSpy(batch, serializedRoot(root), (...args) => {
           dev.send(...args);
@@ -161,8 +159,6 @@ function batchedSpy(
   send: (action: { type: string }, payload: unknown) => void,
 ) {
   if (events.some((v) => v.type === "action" && v.name === "devtoolsDispatch")) return;
-  // const sentVal = serializedRoot();
-  console.log(events);
   const actions = events.filter((v) => v.type === "action");
   if (actions.length > 0) {
     const actionNames = actions.map((act) => actionName(act));

@@ -84,12 +84,7 @@ export function setupDevtools(name: string, root: Serializable): void {
     let batch: EnrichedSpyEvent[] = [];
 
     spy((event: PureSpyEvent & { stack?: string | undefined }) => {
-      if (
-        event.type === "reaction" &&
-        "observableKind" in event &&
-        event.observableKind === "computed"
-      )
-        return;
+      if ("observableKind" in event && event.observableKind === "computed") return;
       if (
         event.type !== "report-end" &&
         event.type !== "scheduled-reaction" &&
@@ -106,18 +101,24 @@ export function setupDevtools(name: string, root: Serializable): void {
           };
           if (event.stack) action.stack = event.stack;
           dev.send(action, serializedRoot(root));
+          return;
         }
       }
       if (event.type === "scheduled-reaction" || event.type === "reaction") {
         batch.push(event);
-        batchedSpy(batch, serializedRoot(root), (...args) => {
-          dev.send(...args);
-        });
+        batchedSpy(
+          batch,
+          () => serializedRoot(root),
+          (...args) => {
+            dev.send(...args);
+          },
+        );
         batch = [];
       } else {
-        const data = event.type === "action" ? getCurrentSagaData() : undefined;
+        const data =
+          event.type === "action" || event.type === "update" ? getCurrentSagaData() : undefined;
         const enrichedEvent: EnrichedSpyEvent =
-          event.type === "action" && data ? { ...event, data } : event;
+          (event.type === "action" || event.type === "update") && data ? { ...event, data } : event;
         batch.push(enrichedEvent);
       }
     });
@@ -154,8 +155,8 @@ function parseStateFromEvent(event: {
 }
 
 function batchedSpy(
-  events: (PureSpyEvent & { stack?: string })[],
-  sentVal: unknown,
+  events: (PureSpyEvent & { stack?: string; data?: SagaData })[],
+  sentVal: () => unknown,
   send: (action: { type: string }, payload: unknown) => void,
 ) {
   if (events.some((v) => v.type === "action" && v.name === "devtoolsDispatch")) return;
@@ -175,7 +176,7 @@ function batchedSpy(
         .filter((v) => v.type !== "action" && v.stack)
         .map((e) => e.stack)
         .join("\n");
-    send(action, sentVal);
+    send(action, sentVal());
   } else if (
     events.some(
       (event) =>
@@ -185,7 +186,7 @@ function batchedSpy(
         event.type !== "scheduled-reaction",
     )
   ) {
-    const data = getCurrentSagaData();
+    const data = getCurrentSagaData() ?? events.find((e) => e.data)?.data;
     const action: { type: string; stack?: string | undefined } = {
       type: data ? `${getConstructor(data.object)?.name}.${data.actionName}` : "<anonymous>",
     };
@@ -194,11 +195,11 @@ function batchedSpy(
         .filter((v) => v.type !== "action" && v.stack)
         .map((e) => e.stack)
         .join("\n");
-    send(action, sentVal);
+    send(action, sentVal());
   }
 }
 type Action = PureSpyEvent & { type: "action" } & { data?: SagaData };
-type EnrichedSpyEvent = Action | Exclude<PureSpyEvent, { type: "action" }>;
+type EnrichedSpyEvent = PureSpyEvent & { data?: SagaData };
 function getFn(action: Action) {
   if (typeof action.object !== "object" || !action.object) return undefined;
   const obj: Partial<Record<string | number | symbol, unknown>> = action.object;

@@ -8,7 +8,8 @@ export const reflectFunctionParams = (f: UnknownFunction): string[] =>
     )
     ?.slice(1, 3)
     .join("")
-    .split(/\s*,\s*/) ?? [];
+    .split(/\s*,\s*/)
+    .filter((v) => !!v.trim()) ?? [];
 
 // Function is not compatible with (...args: unknown[]) => unknown
 // And the only inbuilt guards for functions return Function (typeof fn === 'function')

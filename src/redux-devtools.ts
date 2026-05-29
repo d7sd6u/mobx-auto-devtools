@@ -1,3 +1,4 @@
+// oxlint-disable max-lines-per-function
 // oxlint-disable-next-line unicorn/require-module-specifiers
 import type {} from "@redux-devtools/extension";
 // oxlint-disable typescript/no-unsafe-type-assertion
@@ -186,16 +187,27 @@ function batchedSpy(
         event.type !== "scheduled-reaction",
     )
   ) {
-    const data = getCurrentSagaData() ?? events.find((e) => e.data)?.data;
-    const action: { type: string; stack?: string | undefined } = {
-      type: data ? `${getConstructor(data.object)?.name}.${data.actionName}` : "<anonymous>",
+    const datas = [getCurrentSagaData(), ...events.map((e) => e.data)];
+    const process = (data: SagaData | undefined) => {
+      const action: { type: string; stack?: string | undefined } = {
+        type: data
+          ? `${getConstructor(data.object?.deref())?.name}.${data.actionName}`
+          : "<anonymous>",
+      };
+      if (events.some((e) => e.stack))
+        action.stack = events
+          .filter((v) => v.type !== "action" && v.stack)
+          .map((e) => e.stack)
+          .join("\n");
+      send(action, sentVal());
     };
-    if (events.some((e) => e.stack))
-      action.stack = events
-        .filter((v) => v.type !== "action" && v.stack)
-        .map((e) => e.stack)
-        .join("\n");
-    send(action, sentVal());
+    const syncData = datas.find((v) => !!v && "actionName" in v);
+    if (syncData) process(syncData);
+    else {
+      void Promise.all(datas.map((v) => Promise.resolve(v))).then((resolvedDatas) =>
+        process(resolvedDatas.find((v) => !!v && "actionName" in v)),
+      );
+    }
   }
 }
 type Action = PureSpyEvent & { type: "action" } & { data?: SagaData };
@@ -220,7 +232,7 @@ const actionName = (v: Action) => {
   } catch {
     const data = v.data;
     return data?.object
-      ? `${getConstructor(data.object)?.name}.${data.actionName}`
+      ? `${getConstructor(data.object.deref())?.name}.${data.actionName}`
       : `<anonymous>.${v.name}`;
   }
 };

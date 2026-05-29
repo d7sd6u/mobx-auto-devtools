@@ -6,15 +6,29 @@ import type { UnknownFunction } from "./function-reflection";
 
 export interface SagaData {
   actionName: string;
-  object?: object;
+  object?: {
+    deref(): object | undefined;
+  };
 }
 const sagaData: Record<string, SagaData> = {};
 let asyncLocalStorage: AsyncLocalStorage<SagaData> | undefined;
-export function getCurrentSagaData(): SagaData | undefined {
+declare global {
+  interface Window {
+    asyncStack?(): Promise<string | undefined>;
+  }
+}
+export function getCurrentSagaData(): Promise<SagaData | undefined> | SagaData | undefined {
   if (asyncLocalStorage) return asyncLocalStorage?.getStore();
-  const { stack } = new Error();
+  let { stack } = new Error();
   const found = stack?.match(/(\d{20})/);
   if (!found) {
+    if ("asyncStack" in window) {
+      return window.asyncStack().then((asyncStack) => {
+        const newFound = asyncStack?.match(/(\d{20})/);
+        if (!newFound) return undefined;
+        return sagaData[newFound[1]!];
+      });
+    }
     return undefined;
   }
 
@@ -43,7 +57,9 @@ export function saga<This extends object, Args extends any[], Return extends Pro
 
   const obj = {
     async [id](this: This, ...args: Args): Promise<Return> {
-      if (sagaData[id]) sagaData[id].object = this;
+      if (sagaData[id])
+        sagaData[id].object =
+          "WeakRef" in window ? new window.WeakRef(this) : { deref: () => this };
       if (AsyncLocalStorage && AsyncLocalStorage !== "browser")
         try {
           if (!AsyncLocalStorage) {
@@ -55,7 +71,8 @@ export function saga<This extends object, Args extends any[], Return extends Pro
           AsyncLocalStorage = "browser";
         }
       const result = actionFn.call(this, ...args);
-      void result.finally(() => void setTimeout(() => delete sagaData[id], 30000));
+      if (!("WeakRef" in window))
+        void result.finally(() => void setTimeout(() => delete sagaData[id]?.object, 30000));
       return result;
     },
   };

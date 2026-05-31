@@ -29,6 +29,7 @@ export class Serializable {
         }
       }
       Object.defineProperty(Class.prototype, mobx.$mobx, {
+        configurable: true,
         get(this: unknown) {
           return {
             getObservablePropValue_: (key: string) => {
@@ -65,6 +66,7 @@ export class Serializable {
         ]),
       ),
     });
+    Object.defineProperty(Class.prototype, mobx.$mobx, { value: null });
     return res;
   }
   static fromPlain(Self: typeof Serializable, v: object, data?: object): object {

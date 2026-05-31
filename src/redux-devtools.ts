@@ -13,12 +13,12 @@ import { getObservableMap, Serializable, serializedRoot } from "./mobx";
 import { getCurrentSagaData, type SagaData, getOrigFunction } from "./mobx-saga";
 
 // oxlint-disable-next-line max-lines-per-function
-function createDevtoolsConnection(name: string, root: Serializable) {
+function createDevtoolsConnection(name: string) {
   if (!window.__REDUX_DEVTOOLS_EXTENSION__) throw new Error("");
   const devTools = window.__REDUX_DEVTOOLS_EXTENSION__.connect({
     name,
-    trace: (action) => {
-      if ("stack" in action && typeof action.stack === "string") {
+    trace: (action: object | undefined) => {
+      if (action !== undefined && "stack" in action && typeof action.stack === "string") {
         const stack = action.stack;
         delete action.stack;
         return (
@@ -60,13 +60,18 @@ function createDevtoolsConnection(name: string, root: Serializable) {
   return dev;
 }
 // oxlint-disable-next-line max-lines-per-function
-export function setupDevtools(name: string, root: Serializable): void {
+export function setupDevtools(name: string, root: WeakRef<Serializable>): () => void {
   try {
     register(mobx);
 
-    const dev = createDevtoolsConnection(name, root);
+    const dev = createDevtoolsConnection(name);
 
     dev.subscribe((event) => {
+      if (event.type === "START") {
+        const derefed = root.deref();
+        if (derefed) dev.init(serializedRoot(derefed));
+        return;
+      }
       if (event.type === "ACTION") {
         // oxlint-disable-next-line typescript/no-implied-eval
         const fn = new Function(event.payload);
@@ -101,7 +106,8 @@ export function setupDevtools(name: string, root: Serializable): void {
             ...getArgs(event),
           };
           if (event.stack) action.stack = event.stack;
-          dev.send(action, serializedRoot(root));
+          const derefed = root.deref();
+          if (derefed) dev.send(action, serializedRoot(derefed));
           return;
         }
       }
@@ -109,7 +115,11 @@ export function setupDevtools(name: string, root: Serializable): void {
         batch.push(event);
         batchedSpy(
           batch,
-          () => serializedRoot(root),
+          () => {
+            const derefed = root.deref();
+            if (derefed) return serializedRoot(derefed);
+            return "<garbage-collected>";
+          },
           (...args) => {
             dev.send(...args);
           },
@@ -123,11 +133,25 @@ export function setupDevtools(name: string, root: Serializable): void {
         batch.push(enrichedEvent);
       }
     });
-    dev.init(serializedRoot(root));
+
+    const registry = new FinalizationRegistry(() => {
+      console.log("Unsubscribed");
+      dev.unsubscribe();
+    });
+    registry.register(root.deref() ?? {}, undefined);
+    const derefed = root.deref();
+    if (derefed) dev.init(serializedRoot(derefed));
+    return () => {
+      console.log("Explicit unsubscribe");
+      dev.unsubscribe();
+    };
   } catch (error) {
     console.error(error);
+  } finally {
+    (window as typeof window & Record<`mobx_${string}_root`, unknown>)[`mobx_${name}_root`] =
+      root.deref.bind(root);
   }
-  (window as typeof window & Record<`mobx_${string}_root`, unknown>)[`mobx_${name}_root`] = root;
+  return () => {};
 }
 function parseStateFromEvent(event: {
   type: "DISPATCH";

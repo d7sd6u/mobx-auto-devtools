@@ -268,7 +268,7 @@ function serializeObservableArray(v: Array<unknown>, traversedEntries?: Map<unkn
   }
   return mapped;
 }
-const externalObjects = new Map<ExternalObjectId, unknown>();
+const externalObjects = new Map<ExternalObjectId, WeakRef<object>>();
 if (typeof window === "object")
   (window as typeof window & { externalObjects?: unknown }).externalObjects = externalObjects;
 function serializeObservable(
@@ -307,25 +307,25 @@ function isExternalId(id: unknown): id is ExternalObjectId {
   return typeof id === "string" && id.startsWith("external-class-");
 }
 function getExternalObjectById(id: ExternalObjectId) {
-  return externalObjects.get(id);
+  return externalObjects.get(id)?.deref();
 }
 type ExternalObjectId = `external-class-${string}`;
 
 function createExternalObject(v: object): ExternalObjectId {
-  const existingId = externalObjects.entries().find(([, val]) => val === v)?.[0];
+  const existingId = externalObjects.entries().find(([, val]) => val.deref() === v)?.[0];
   if (existingId) return existingId;
   // oxlint-disable-next-line typescript/no-base-to-string
   const name = String(v);
   const idFromName = `external-class-${name}` as const;
   // oxlint-disable-next-line typescript/no-base-to-string
   if (name !== String({})) {
-    externalObjects.set(idFromName, v);
+    externalObjects.set(idFromName, new WeakRef(v));
     return idFromName;
   }
   const className = getConstructor(v)?.name ?? "anonymous";
   const randId = Math.random().toString().slice(4);
   const id = `external-class-${className}-${randId}` as const;
-  externalObjects.set(id, v);
+  externalObjects.set(id, new WeakRef(v));
   return id;
 }
 

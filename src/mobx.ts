@@ -11,6 +11,20 @@ export class Serializable {
   }
   static revivedObjects: WeakMap<object, Serializable> = new WeakMap();
   static serializedObjects: WeakMap<object, unknown> = new WeakMap();
+
+  static populate$mobx(prototype: unknown, getters: Record<string, () => unknown>): void {
+    Object.defineProperty(prototype, mobx.$mobx, {
+      configurable: true,
+      get(this: unknown) {
+        return {
+          getObservablePropValue_: (key: string) => {
+            return getters[key]?.apply(this);
+          },
+        };
+      },
+    });
+  }
+
   // oxlint-disable-next-line max-lines-per-function
   toObj(clear?: boolean): object {
     if (clear) Serializable.serializedObjects = new WeakMap();
@@ -28,16 +42,7 @@ export class Serializable {
           getters[key] = val.derivation;
         }
       }
-      Object.defineProperty(Class.prototype, mobx.$mobx, {
-        configurable: true,
-        get(this: unknown) {
-          return {
-            getObservablePropValue_: (key: string) => {
-              return getters[key]?.apply(this);
-            },
-          };
-        },
-      });
+      Serializable.populate$mobx(Class.prototype, getters);
     }
     Object.assign(obj, {
       ...Object.fromEntries(
@@ -66,7 +71,6 @@ export class Serializable {
         ]),
       ),
     });
-    Object.defineProperty(Class.prototype, mobx.$mobx, { value: null });
     return res;
   }
   static fromPlain(Self: typeof Serializable, v: object, data?: object): object {

@@ -69,22 +69,25 @@ export function setupDevtools(name: string, root: WeakRef<Serializable>): () => 
     dev.subscribe((event) => {
       if (event.type === "START") {
         const derefed = root.deref();
-        if (derefed) dev.init(serializedRoot(derefed));
+        if (derefed) dev.send({ type: "@@INIT" }, serializedRoot(derefed));
         return;
       }
       if (event.type === "ACTION") {
         // oxlint-disable-next-line typescript/no-implied-eval
         const fn = new Function(event.payload);
-        fn.apply(root);
+        fn.apply(root.deref());
       }
       if (event.type !== "DISPATCH") return;
 
       const state = parseStateFromEvent(event) as typeof root;
 
       runInAction(function devtoolsDispatch() {
-        for (const key of getObservableMap(state).keys()) {
-          (root as Serializable & Record<string, unknown>)[key] = state[key as keyof typeof state];
-        }
+        const derefed = root.deref();
+        if (derefed)
+          for (const key of getObservableMap(state).keys()) {
+            (derefed as Serializable & Record<string, unknown>)[key] =
+              state[key as keyof typeof state];
+          }
       });
     });
     let batch: EnrichedSpyEvent[] = [];
@@ -135,15 +138,13 @@ export function setupDevtools(name: string, root: WeakRef<Serializable>): () => 
     });
 
     const registry = new FinalizationRegistry(() => {
-      console.log("Unsubscribed");
-      dev.unsubscribe();
+      if ("disconnect" in dev && typeof dev.disconnect === "function") dev.disconnect();
     });
     registry.register(root.deref() ?? {}, undefined);
     const derefed = root.deref();
     if (derefed) dev.init(serializedRoot(derefed));
     return () => {
-      console.log("Explicit unsubscribe");
-      dev.unsubscribe();
+      if ("disconnect" in dev && typeof dev.disconnect === "function") dev.disconnect();
     };
   } catch (error) {
     console.error(error);
@@ -223,6 +224,7 @@ function batchedSpy(
           .filter((v) => v.type !== "action" && v.stack)
           .map((e) => e.stack)
           .join("\n");
+      if (data && "stack" in data && typeof data.stack === "string") action.stack = data.stack;
       send(action, sentVal());
     };
     const syncData = datas.find((v) => !!v && "actionName" in v);

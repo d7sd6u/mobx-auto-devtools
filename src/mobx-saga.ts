@@ -26,7 +26,9 @@ export function getCurrentSagaData(): Promise<SagaData | undefined> | SagaData |
       return window.asyncStack().then((asyncStack) => {
         const newFound = asyncStack?.match(/(\d{20})/);
         if (!newFound) return undefined;
-        return sagaData[newFound[1]!];
+        const data = sagaData[newFound[1]!];
+        if (!data) return undefined;
+        return { ...data, stack: asyncStack };
       });
     }
     return undefined;

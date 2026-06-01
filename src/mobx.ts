@@ -86,6 +86,16 @@ export class Serializable {
         if (descriptor?.enumerable && (targetDescriptor?.set || !targetDescriptor?.get)) {
           v[key as keyof typeof v] = data[key as keyof typeof data];
         }
+        if (descriptor?.enumerable && !targetDescriptor?.set && targetDescriptor?.get) {
+          try {
+            v[mobx.$mobx].values_.set(
+              key,
+              mobx.computed(() =>
+                Reflect.get(v.__proto__, mobx.$mobx, v).getObservablePropValue_(key),
+              ),
+            );
+          } catch (error) {}
+        }
       }
     }
     for (const [key, descriptor] of getAllEntries(Self.prototype)) {

@@ -49,6 +49,22 @@ describe("Serializable.toObj", () => {
     expect(serialized.ordinaryField).toBe(123);
     expect(Serializable.fromObj(obj.toObj())).toEqual(obj);
   });
+  test("it works with computeds 2", () => {
+    class Test extends Serializable {
+      @computed get ordinaryField() {
+        return this.view.test;
+      }
+      constructor() {
+        super();
+        this.view = { test: 123 };
+      }
+      @observable accessor view;
+    }
+    const obj = new Test();
+    const serialized = Serializable.fromObj(obj.toObj()) as Test;
+    expect(serialized.ordinaryField).toBe(123);
+    expect(Serializable.fromObj(obj.toObj())).toEqual(obj);
+  });
   test("it works with arrow fn fields", () => {
     class Test extends Serializable {
       @observable accessor ordinaryField = 123;

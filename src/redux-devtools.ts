@@ -163,13 +163,8 @@ function parseStateFromEvent(event: {
   const rawState = JSAN.parse(
     JSON.stringify(
       JSON.parse(event.state, (_, val: unknown) => {
-        if (
-          Array.isArray(val) &&
-          val.length === 1 &&
-          typeof val[0] === "string" &&
-          val[0].startsWith("$.data")
-        ) {
-          return { $jsan: val[0] };
+        if (!!val && typeof val === "object" && "$ref" in val) {
+          return { $jsan: val.$ref };
         }
         return val;
       }),

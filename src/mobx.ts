@@ -359,7 +359,6 @@ export function serializedRoot(root: Serializable): unknown {
       undefined,
       undefined,
       {
-        circular: true,
         regex: true,
         map: true,
         set: true,
@@ -371,6 +370,17 @@ export function serializedRoot(root: Serializable): unknown {
         date: true,
       },
     ),
+    (_, val: unknown) => {
+      if (
+        !!val &&
+        typeof val === "object" &&
+        "$jsan" in val &&
+        typeof val.$jsan === "string" &&
+        val.$jsan.startsWith("$")
+      )
+        return { $ref: val.$jsan };
+      return val;
+    },
   );
 }
 // oxlint-disable-next-line max-lines-per-function

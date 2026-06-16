@@ -22,7 +22,7 @@ export function getCurrentSagaData(): Promise<SagaData | undefined> | SagaData |
   let { stack } = new Error();
   const found = stack?.match(/(\d{20})/);
   if (!found) {
-    if ("asyncStack" in window) {
+    if ("asyncStack" in globalThis && "asyncStack" in window) {
       return window.asyncStack().then((asyncStack) => {
         const newFound = asyncStack?.match(/(\d{20})/);
         if (!newFound) return undefined;
@@ -42,13 +42,41 @@ export function getOrigFunction(fn: UnknownFunction): Function | undefined {
 }
 type Storage = typeof AsyncLocalStorage;
 export function saga<This extends object, Args extends any[], Return extends Promise<unknown>>(
+  target: undefined,
+  context: ClassFieldDecoratorContext<This, (this: This, ...args: Args) => Return>,
+): () => (this: This, ...args: Args) => Return;
+export function saga<This extends object, Args extends any[], Return extends Promise<unknown>>(
   target: (this: This, ...args: Args) => Return,
   context: ClassMethodDecoratorContext<This, (this: This, ...args: Args) => Return>,
-): typeof target | undefined {
+): typeof target;
+export function saga<This extends object, Args extends any[], Return extends Promise<unknown>>(
+  target: ((this: This, ...args: Args) => Return) | undefined,
+  context:
+    | ClassMethodDecoratorContext<This, (this: This, ...args: Args) => Return>
+    | ClassFieldDecoratorContext<This, (this: This, ...args: Args) => Return>,
+):
+  | typeof target
+  | ((initValue: (this: This, ...args: Args) => Return) => (this: This, ...args: Args) => Return)
+  | undefined {
+  if (!target)
+    return (target: (this: This, ...args: Args) => Return) => {
+      return sagaImpl<This, Args, Return>(target, context);
+    };
+  return sagaImpl<This, Args, Return>(target, context);
+}
+function sagaImpl<This extends object, Args extends any[], Return extends Promise<unknown>>(
+  target: (this: This, ...args: Args) => Return,
+  context:
+    | ClassMethodDecoratorContext<This, (this: This, ...args: Args) => Return>
+    | ClassFieldDecoratorContext<This, (this: This, ...args: Args) => Return>,
+): typeof target {
   const methodName = String(context.name);
 
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-  const actionFn = action(target, context) as typeof target;
+  const actionFn =
+    context.kind === "field"
+      ? (action(undefined, context)(target) as typeof target)
+      : (action(target, context) as typeof target);
 
   const id = Math.random().toString().slice(2).padEnd(20, "0");
   sagaData[id] = { actionName: methodName };
@@ -61,8 +89,8 @@ export function saga<This extends object, Args extends any[], Return extends Pro
     async [id](this: This, ...args: Args): Promise<Return> {
       if (sagaData[id])
         sagaData[id].object =
-          "WeakRef" in window ? new window.WeakRef(this) : { deref: () => this };
-      if (AsyncLocalStorage && AsyncLocalStorage !== "browser")
+          "WeakRef" in globalThis ? new globalThis.WeakRef(this) : { deref: () => this };
+      if (AsyncLocalStorage !== "browser")
         try {
           if (!AsyncLocalStorage) {
             AsyncLocalStorage = (await import("node:async_hooks")).AsyncLocalStorage;
@@ -73,7 +101,7 @@ export function saga<This extends object, Args extends any[], Return extends Pro
           AsyncLocalStorage = "browser";
         }
       const result = actionFn.call(this, ...args);
-      if (!("WeakRef" in window))
+      if (!("WeakRef" in globalThis))
         void result.finally(() => void setTimeout(() => delete sagaData[id]?.object, 30000));
       return result;
     },
@@ -82,5 +110,5 @@ export function saga<This extends object, Args extends any[], Return extends Pro
 
   return obj[id] satisfies
     | undefined
-    | ((this: This, ...args: Args) => Promise<Return>) as typeof target;
+    | ((this: This, ...args: Args) => Promise<Return>) as NonNullable<typeof target>;
 }

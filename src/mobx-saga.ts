@@ -40,35 +40,39 @@ const origFunctions = new WeakMap<UnknownFunction, UnknownFunction>();
 export function getOrigFunction(fn: UnknownFunction): Function | undefined {
   return origFunctions.get(fn);
 }
-type Storage = typeof AsyncLocalStorage;
-export function saga<This extends object, Args extends any[], Return extends Promise<unknown>>(
+export function saga<This extends object, Args extends any[], Return>(
   target: undefined,
   context: ClassFieldDecoratorContext<This, (this: This, ...args: Args) => Return>,
 ): () => (this: This, ...args: Args) => Return;
-export function saga<This extends object, Args extends any[], Return extends Promise<unknown>>(
+export function saga<This extends object, Args extends any[], Return>(
   target: (this: This, ...args: Args) => Return,
   context: ClassMethodDecoratorContext<This, (this: This, ...args: Args) => Return>,
 ): typeof target;
-export function saga<This extends object, Args extends any[], Return extends Promise<unknown>>(
+export function saga<This extends object, Args extends any[], Return>(
   target: ((this: This, ...args: Args) => Return) | undefined,
   context:
     | ClassMethodDecoratorContext<This, (this: This, ...args: Args) => Return>
     | ClassFieldDecoratorContext<This, (this: This, ...args: Args) => Return>,
 ):
   | typeof target
-  | ((initValue: (this: This, ...args: Args) => Return) => (this: This, ...args: Args) => Return)
+  | ((this: This, initValue: (this: undefined, ...args: Args) => Return) => (this: This, ...args: Args) => Return)
   | undefined {
   if (!target)
-    return (target: (this: This, ...args: Args) => Return) => {
-      return sagaImpl<This, Args, Return>(target, context);
+    return function init(this: This, trueTarget: (this: void, ...args: Args) => Return) {
+      return sagaImpl<This, Args, Return>(trueTarget, context, this);
     };
   return sagaImpl<This, Args, Return>(target, context);
 }
-function sagaImpl<This extends object, Args extends any[], Return extends Promise<unknown>>(
+let AsyncLocalStorageClass: typeof import("node:async_hooks").AsyncLocalStorage | undefined;
+try {
+  AsyncLocalStorageClass = await import("node:async_hooks").then(v => v.AsyncLocalStorage);
+} catch {}
+function sagaImpl<This extends object, Args extends any[], Return>(
   target: (this: This, ...args: Args) => Return,
   context:
     | ClassMethodDecoratorContext<This, (this: This, ...args: Args) => Return>
     | ClassFieldDecoratorContext<This, (this: This, ...args: Args) => Return>,
+  that?: This
 ): typeof target {
   const methodName = String(context.name);
 
@@ -80,28 +84,20 @@ function sagaImpl<This extends object, Args extends any[], Return extends Promis
 
   const id = Math.random().toString().slice(2).padEnd(20, "0");
   sagaData[id] = { actionName: methodName };
-  let AsyncLocalStorage: Storage | undefined | "browser";
-  void import("node:async_hooks")
-    .then((pkg) => (AsyncLocalStorage = pkg.AsyncLocalStorage))
-    .catch(() => (AsyncLocalStorage = "browser"));
 
   const obj = {
-    async [id](this: This, ...args: Args): Promise<Return> {
-      if (sagaData[id])
+    [id](this: This, ...args: Args): Return {
+      const self = that ?? this;
+      if (sagaData[id] && self)
         sagaData[id].object =
-          "WeakRef" in globalThis ? new globalThis.WeakRef(this) : { deref: () => this };
-      if (AsyncLocalStorage !== "browser")
+          "WeakRef" in globalThis ? new globalThis.WeakRef(self) : { deref: () => self };
+      if (AsyncLocalStorageClass !== undefined)
         try {
-          if (!AsyncLocalStorage) {
-            AsyncLocalStorage = (await import("node:async_hooks")).AsyncLocalStorage;
-          }
-          asyncLocalStorage = new AsyncLocalStorage();
-          return asyncLocalStorage.run(sagaData[id]!, () => actionFn.call(this, ...args));
-        } catch {
-          AsyncLocalStorage = "browser";
-        }
-      const result = actionFn.call(this, ...args);
-      if (!("WeakRef" in globalThis))
+          asyncLocalStorage = new AsyncLocalStorageClass();
+          return asyncLocalStorage.run(sagaData[id]!, () => actionFn.call(self, ...args));
+        } catch {}
+      const result = actionFn.call(self, ...args);
+      if (!("WeakRef" in globalThis) && result instanceof Promise)
         void result.finally(() => void setTimeout(() => delete sagaData[id]?.object, 30000));
       return result;
     },
@@ -110,5 +106,5 @@ function sagaImpl<This extends object, Args extends any[], Return extends Promis
 
   return obj[id] satisfies
     | undefined
-    | ((this: This, ...args: Args) => Promise<Return>) as NonNullable<typeof target>;
+    | ((this: This, ...args: Args) => Return | Promise<Return>) as NonNullable<typeof target>;
 }
